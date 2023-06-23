@@ -212,7 +212,11 @@ app.post("/send", (req, res) => {
 });
 
 process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception:", err);
+  var errMsg = `[${new Date().toLocaleString("ko-kr")}] Uncaught Exception: \n${err.stack}`;
+	
+	File.appendFile("../server_error.log", errMsg, function(){
+		console.error(errMsg);
+	});
 });
 
 server.listen(PORT, () => {
