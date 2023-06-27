@@ -154,8 +154,10 @@ app.post("/send", (req, res) => {
 
             if (row.length > 0 && row[0].return_date) {
               if (date > row[0].return_date) {
-                deadline.outOfDate = date - row[0].return_date;
+                // deadline.outOfDate = date - row[0].return_date;
 
+                diff = Math.abs(date.getTime() - row[0].return_date.getTime());
+                deadline.outOfDate = Math.ceil(diff / (1000 * 60 * 60 * 24));
                 console.log(deadline);
 
                 connection.query(
