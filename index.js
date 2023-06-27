@@ -110,7 +110,7 @@ app.post("/send", (req, res) => {
         let checkUmbId = new Object();
         checkUmbId.isAvailable = true;
         connection.query(
-          `SELECT * FROM ${tableName} WHERE umb_id=? AND return_delayed=1`,
+          `SELECT * FROM ${tableName} WHERE umb_id=? AND return_delayed=0`,
           [umbId],
           (err, row) => {
             if (err) {
