@@ -15,8 +15,12 @@ app.use(bodyParser.json());
 
 const server = https.createServer(
   {
-    ca: File.readFileSync("/etc/letsencrypt/live/api.neoflux.club/fullchain.pem"),
-    key: File.readFileSync("/etc/letsencrypt/live/api.neoflux.club/privkey.pem"),
+    ca: File.readFileSync(
+      "/etc/letsencrypt/live/api.neoflux.club/fullchain.pem"
+    ),
+    key: File.readFileSync(
+      "/etc/letsencrypt/live/api.neoflux.club/privkey.pem"
+    ),
     cert: File.readFileSync("/etc/letsencrypt/live/api.neoflux.club/cert.pem"),
   },
   app
@@ -60,6 +64,7 @@ app.post("/send", (req, res) => {
 
     if (willChk === true) {
       let delayed = new Object();
+      let checkStdId = new Object();
       connection.query(
         `SELECT * FROM ${tableName} WHERE return_delayed=1 AND std_id=?`,
         [stdId],
@@ -169,8 +174,7 @@ app.post("/send", (req, res) => {
                       console.log("Error: %s", err);
 
                       connection.end();
-                    } else
-                      res.send(deadline)
+                    } else res.send(deadline);
 
                     connection.end();
                   }
@@ -214,11 +218,13 @@ app.post("/send", (req, res) => {
 });
 
 process.on("uncaughtException", (err) => {
-  var errMsg = `[${new Date().toLocaleString("ko-kr")}] Uncaught Exception: \n${err.stack}`;
-	
-	File.appendFile("../server_error.log", errMsg, function(){
-		console.error(errMsg);
-	});
+  var errMsg = `[${new Date().toLocaleString("ko-kr")}] Uncaught Exception: \n${
+    err.stack
+  }`;
+
+  File.appendFile("../server_error.log", errMsg, function () {
+    console.error(errMsg);
+  });
 });
 
 server.listen(PORT, () => {
