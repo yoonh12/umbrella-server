@@ -82,7 +82,7 @@ app.post("/send", (req, res) => {
             connection.end();
           }
 
-          if ((delayed.notDelayed = true)) {
+          if (delayed.notDelayed === true) {
             connection.query(
               `SELECT * FROM ${tableName} WHERE std_id=?`,
               [stdId],
