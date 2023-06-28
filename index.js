@@ -181,7 +181,7 @@ app.post("/send", (req, res) => {
                 );
               } else {
                 connection.query(
-                  `DELETE FROM ${tableName} WHERE umb_id=? and return_delayed=0`,
+                  `DELETE FROM ${tableName} WHERE umb_id=? AND return_delayed=0`,
                   [umbId],
                   (err) => {
                     if (err) {
