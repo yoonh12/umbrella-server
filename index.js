@@ -148,7 +148,7 @@ app.post("/send", (req, res) => {
         let noUmbData = false;
         let deadline = new Object();
         connection.query(
-          `SELECT * FROM ${tableName} WHERE umb_id=?`,
+          `SELECT * FROM ${tableName} WHERE umb_id=? AND return_delayed=0`,
           [umbId],
           (err, row) => {
             if (err) {
@@ -166,7 +166,7 @@ app.post("/send", (req, res) => {
                 console.log(deadline);
 
                 connection.query(
-                  `UPDATE ${tableName} SET return_delayed = 1 WHERE umb_id=?`,
+                  `UPDATE ${tableName} SET return_delayed = 1 WHERE umb_id=? AND return_delayed=0`,
                   [umbId],
                   (err) => {
                     if (err) {
@@ -181,7 +181,7 @@ app.post("/send", (req, res) => {
                 );
               } else {
                 connection.query(
-                  `DELETE FROM ${tableName} WHERE umb_id=?`,
+                  `DELETE FROM ${tableName} WHERE umb_id=? and return_delayed=0`,
                   [umbId],
                   (err) => {
                     if (err) {
