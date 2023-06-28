@@ -222,7 +222,7 @@ process.on("uncaughtException", (err) => {
     err.stack
   }`;
 
-  File.appendFile("../server_error.log", errMsg, function () {
+  File.appendFile("server_error.log", errMsg, function () {
     console.error(errMsg);
   });
 });
