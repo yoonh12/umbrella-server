@@ -35,7 +35,7 @@ app.use((err, req, res, next) => {
   res.status(500).send("Internal Server Error");
 });
 
-app.post("/send", (req, res) => {
+app.post("/", (req, res) => {
   try {
     const connection = mysql.createConnection({
       host: process.env.DB_HOST,
@@ -57,9 +57,13 @@ app.post("/send", (req, res) => {
 
     // logging
     if (data.umb_id !== undefined) {
-      console.log("Rental:", data);
+      File.appendFile("server.log", data, function () {
+        console.log("Rental:", data);
+      });
     } else if (data.std_id === undefined) {
-      console.log("Return:", data);
+      File.appendFile("server.log", data, function () {
+        console.log("Return:", data);
+      });
     }
 
     if (willChk === true) {
@@ -218,12 +222,12 @@ app.post("/send", (req, res) => {
 });
 
 process.on("uncaughtException", (err) => {
-  var errMsg = `[${new Date().toLocaleString("ko-kr")}] Uncaught Exception: \n${
+  var data = `[${new Date().toLocaleString("ko-kr")}] Uncaught Exception: \n${
     err.stack
   }`;
 
-  File.appendFile("server_error.log", errMsg, function () {
-    console.error(errMsg);
+  File.appendFile("server_error.log", data, function () {
+    console.error(data);
   });
 });
 
