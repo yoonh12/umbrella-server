@@ -57,11 +57,11 @@ app.post("/", (req, res) => {
 
     // logging
     if (data.umb_id !== undefined) {
-      File.appendFile("server.log", `${JSON.stringify(data)}\n`, function () {
+      File.appendFile("server.log", `Rental: ${JSON.stringify(data)}\n`, function () {
         console.log("Rental:", data);
       });
     } else if (data.std_id === undefined) {
-      File.appendFile("server.log", `${JSON.stringify(data)}\n`, function () {
+      File.appendFile("server.log", `Return: ${JSON.stringify(data)}\n`, function () {
         console.log("Return:", data);
       });
     }
