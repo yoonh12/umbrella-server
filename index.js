@@ -56,7 +56,7 @@ app.post("/", (req, res) => {
     };
 
     // logging
-    if (data.umb_id !== undefined) {
+    if (data.std_id !== undefined) {
       File.appendFile("server.log", `Rental: ${JSON.stringify(data)}\n`, function () {
         console.log("Rental:", data);
       });
