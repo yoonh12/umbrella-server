@@ -56,14 +56,30 @@ app.post("/", (req, res) => {
     };
 
     // logging
-    if (data.std_id !== undefined) {
-      File.appendFile("server.log", `Rental: ${JSON.stringify(data)}\n`, function () {
-        console.log("Rental:", data);
-      });
+    if (data.std_id !== undefined && date.umb_id === undefined) {
+      File.appendFile(
+        "server.log",
+        `Checking: ${JSON.stringify(data)}\n`,
+        function () {
+          console.log("Checking:", data);
+        }
+      );
+    } else if (data.std_id !== undefined) {
+      File.appendFile(
+        "server.log",
+        `Rental: ${JSON.stringify(data)}\n`,
+        function () {
+          console.log("Rental:", data);
+        }
+      );
     } else if (data.std_id === undefined) {
-      File.appendFile("server.log", `Return: ${JSON.stringify(data)}\n`, function () {
-        console.log("Return:", data);
-      });
+      File.appendFile(
+        "server.log",
+        `Return: ${JSON.stringify(data)}\n`,
+        function () {
+          console.log("Return:", data);
+        }
+      );
     }
 
     if (willChk === true) {
