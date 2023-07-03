@@ -57,11 +57,11 @@ app.post("/", (req, res) => {
 
     // logging
     if (data.umb_id !== undefined) {
-      File.appendFile("server.log", data, function () {
+      File.appendFile("server.log", `${data}\n`, function () {
         console.log("Rental:", data);
       });
     } else if (data.std_id === undefined) {
-      File.appendFile("server.log", data, function () {
+      File.appendFile("server.log", `${data}\n`, function () {
         console.log("Return:", data);
       });
     }
@@ -226,7 +226,7 @@ process.on("uncaughtException", (err) => {
     err.stack
   }`;
 
-  File.appendFile("server_error.log", data, function () {
+  File.appendFile("server_error.log", `${data}\n`, function () {
     console.error(data);
   });
 });
