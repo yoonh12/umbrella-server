@@ -64,7 +64,7 @@ app.post("/", (req, res) => {
           console.log("Checking:", data);
         }
       );
-    } else if (data.std_id !== undefined) {
+    } else if (data.std_id !== undefined && date.umb_id !== undefined) {
       File.appendFile(
         "server.log",
         `Rental: ${JSON.stringify(data)}\n`,
