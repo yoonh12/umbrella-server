@@ -16,12 +16,12 @@ app.use(bodyParser.json());
 const server = https.createServer(
   {
     ca: File.readFileSync(
-      "/etc/letsencrypt/live/api.neoflux.club/fullchain.pem"
+      "/etc/letsencrypt/live/umbrella.andong.hs.kr/fullchain.pem"
     ),
     key: File.readFileSync(
-      "/etc/letsencrypt/live/api.neoflux.club/privkey.pem"
+      "/etc/letsencrypt/live/umbrella.andong.hs.kr/privkey.pem"
     ),
-    cert: File.readFileSync("/etc/letsencrypt/live/api.neoflux.club/cert.pem"),
+    cert: File.readFileSync("/etc/letsencrypt/live/umbrella.andong.hs.kr/cert.pem"),
   },
   app
 );
@@ -35,7 +35,7 @@ app.use((err, req, res, next) => {
   res.status(500).send("Internal Server Error");
 });
 
-app.post("/", (req, res) => {
+app.post("/api", (req, res) => {
   try {
     const connection = mysql.createConnection({
       host: process.env.DB_HOST,
