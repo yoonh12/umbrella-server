@@ -25,3 +25,5 @@ yarn-error.log*
 index_test.js
 *.log
 .env
+server.log
+server_error.log
