@@ -181,7 +181,7 @@ app.post("/api", (req, res) => {
             if (row.length > 0 && row[0].return_date) {
               if (date > row[0].return_date) {
                 diff = Math.abs(date.getTime() - row[0].return_date.getTime());
-                deadline.outOfDate = Math.ceil(diff / (24 * 60 * 60 * 1000));
+                deadline.outOfDate = Math.ceil(diff / (24 * 60 * 60 * 1000)) - 1;
                 console.log(deadline);
 
                 connection.query(
