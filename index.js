@@ -13,6 +13,7 @@ const PORT = process.env.APP_PORT,
 const app = express();
 app.use(bodyParser.json());
 
+/* SSL
 const server = https.createServer(
   {
     ca: File.readFileSync(
@@ -24,7 +25,7 @@ const server = https.createServer(
     cert: File.readFileSync("/etc/letsencrypt/live/umbrella.andong.hs.kr/cert.pem"),
   },
   app
-);
+); */
 
 app.use(cors()); // CORS
 
@@ -179,10 +180,8 @@ app.post("/api", (req, res) => {
 
             if (row.length > 0 && row[0].return_date) {
               if (date > row[0].return_date) {
-                // deadline.outOfDate = date - row[0].return_date;
-
                 diff = Math.abs(date.getTime() - row[0].return_date.getTime());
-                deadline.outOfDate = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                deadline.outOfDate = Math.ceil(diff / (24 * 60 * 60 * 1000));
                 console.log(deadline);
 
                 connection.query(
@@ -247,6 +246,6 @@ process.on("uncaughtException", (err) => {
   });
 });
 
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`This app is running on ${PORT}.`);
 });
