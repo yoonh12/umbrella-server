@@ -4,6 +4,7 @@ const File = require("fs");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const mysql = require("mysql");
+const moment = require("moment-timezone");
 
 require("dotenv").config();
 
@@ -13,19 +14,18 @@ const PORT = process.env.APP_PORT,
 const app = express();
 app.use(bodyParser.json());
 
-/* SSL
 const server = https.createServer(
   {
     ca: File.readFileSync(
-      "/etc/letsencrypt/live/umbrella.andong.hs.kr/fullchain.pem"
+      "/etc/letsencrypt/live/api.andong.hs.kr/fullchain.pem"
     ),
     key: File.readFileSync(
-      "/etc/letsencrypt/live/umbrella.andong.hs.kr/privkey.pem"
+      "/etc/letsencrypt/live/api.andong.hs.kr/privkey.pem"
     ),
-    cert: File.readFileSync("/etc/letsencrypt/live/umbrella.andong.hs.kr/cert.pem"),
+    cert: File.readFileSync("/etc/letsencrypt/live/api.andong.hs.kr/cert.pem"),
   },
   app
-); */
+);
 
 app.use(cors()); // CORS
 
@@ -46,7 +46,9 @@ app.post("/api", (req, res) => {
       database: process.env.DB_NAME,
     });
 
-    const date = new Date();
+    connection.connect();
+
+    const date = moment().tz("Asia/Seoul");
     const { isRenting, stdId, umbId, rentalDate, returnDate, willChk } =
       req.body;
     let data = {
@@ -57,37 +59,22 @@ app.post("/api", (req, res) => {
     };
 
     // logging
-    if (data.std_id !== undefined && data.umb_id === undefined) {
-      File.appendFile(
-        "server.log",
-        `Checking: ${JSON.stringify(data)}\n`,
-        function () {
-          console.log("Checking:", data);
-        }
-      );
-    } else if (data.std_id !== undefined && data.umb_id !== undefined) {
-      File.appendFile(
-        "server.log",
-        `Rental: ${JSON.stringify(data)}\n`,
-        function () {
-          console.log("Rental:", data);
-        }
-      );
-    } else if (data.std_id === undefined) {
-      File.appendFile(
-        "server.log",
-        `Return: ${JSON.stringify(data)}\n`,
-        function () {
-          console.log("Return:", data);
-        }
-      );
+    function logToFileAndConsole(logType, logData, logMessage) {
+      File.appendFile("server.log", `${logType}: ${JSON.stringify(logData)}\n`, function () {
+        console.log(`${logType}:`, logData);
+      });
     }
+    
+    logToFileAndConsole("Checking", data, "Checking:");
+    logToFileAndConsole("Rental", data, "Rental:");
+    logToFileAndConsole("Return", data, "Return:");
+    
 
     if (willChk === true) {
       let delayed = new Object();
       let checkStdId = new Object();
       connection.query(
-        `SELECT * FROM ${tableName} WHERE return_delayed=1 AND std_id=?`,
+        `SELECT * FROM ${tableName} WHERE return_status=1 AND std_id=?`,
         [stdId],
         (err, row) => {
           if (err) {
@@ -131,7 +118,7 @@ app.post("/api", (req, res) => {
         let checkUmbId = new Object();
         checkUmbId.isAvailable = true;
         connection.query(
-          `SELECT * FROM ${tableName} WHERE umb_id=? AND return_delayed=0`,
+          `SELECT * FROM ${tableName} WHERE umb_id=? AND return_status=0`,
           [umbId],
           (err, row) => {
             if (err) {
@@ -169,7 +156,7 @@ app.post("/api", (req, res) => {
         let noUmbData = false;
         let deadline = new Object();
         connection.query(
-          `SELECT * FROM ${tableName} WHERE umb_id=? AND return_delayed=0`,
+          `SELECT * FROM ${tableName} WHERE umb_id=? AND return_status=0`,
           [umbId],
           (err, row) => {
             if (err) {
@@ -178,14 +165,16 @@ app.post("/api", (req, res) => {
               connection.end();
             }
 
+            
             if (row.length > 0 && row[0].return_date) {
-              if (date > row[0].return_date) {
-                diff = Math.abs(date.getTime() - row[0].return_date.getTime());
-                deadline.outOfDate = Math.ceil(diff / (24 * 60 * 60 * 1000)) - 1;
+              if (date > moment(row[0].return_date).tz("Asia/Seoul")) {
+                diff = Math.abs(moment().valueOf() - moment(row[0].return_date).tz("Asia/Seoul"));
+                deadline.outOfDate =
+                  Math.ceil(diff / (24 * 60 * 60 * 1000)) - 1;
                 console.log(deadline);
 
                 connection.query(
-                  `UPDATE ${tableName} SET return_delayed = 1 WHERE umb_id=? AND return_delayed=0`,
+                  `UPDATE ${tableName} SET return_status=1 WHERE umb_id=? AND return_status=0`,
                   [umbId],
                   (err) => {
                     if (err) {
@@ -200,7 +189,7 @@ app.post("/api", (req, res) => {
                 );
               } else {
                 connection.query(
-                  `DELETE FROM ${tableName} WHERE umb_id=? AND return_delayed=0`,
+                  `DELETE FROM ${tableName} WHERE umb_id=? AND return_status=0`,
                   [umbId],
                   (err) => {
                     if (err) {
@@ -246,6 +235,57 @@ process.on("uncaughtException", (err) => {
   });
 });
 
-app.listen(PORT, () => {
+function updateReturnDelayed() {
+  try {
+    const conn = mysql.createConnection({
+      host: process.env.DB_HOST,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWD,
+      PORT: process.env.DB_PORT,
+      database: process.env.DB_NAME,
+    });
+    conn.connect();
+    conn.query(
+      `SELECT * FROM ${tableName} WHERE return_delayed=0`,
+      null,
+      (err, row) => {
+        if (err) {
+          console.log(err);
+          conn.end();
+        }
+        if (row.length > 0) {
+          for (let usr = 0; usr < row.length; usr++) {
+            if (
+              moment().format("YYYY-MM-DD") >
+              moment(row[usr].return_date).tz("Asia/Seoul").format("YYYY-MM-DD")
+            ) {
+              conn.query(
+                `UPDATE ${tableName} SET return_delayed = 1 WHERE std_id=?`,
+                [row[usr].std_id],
+                (err) => {
+                  if (err) {
+                    console.log("Error: %s", err);
+                    conn.end();
+                  } else conn.end();
+                }
+              );
+            }
+          }
+          conn.end();
+        } else {
+          conn.end();
+        }
+      }
+    );
+  } catch (e) {
+    console.log(e);
+  }
+}
+
+server.listen(PORT, () => {
   console.log(`This app is running on ${PORT}.`);
 });
+
+setInterval(() => {
+  updateReturnDelayed();
+}, 1 * 60 * 60 * 1000);
