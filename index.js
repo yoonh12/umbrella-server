@@ -60,15 +60,27 @@ app.post("/api", (req, res) => {
 
     // logging
     function logToFileAndConsole(logType, logData, logMessage) {
-      File.appendFile("server.log", `${logType}: ${JSON.stringify(logData)}\n`, function () {
-        console.log(`${logType}:`, logData);
-      });
+      File.appendFile(
+        "server.log",
+        `[${moment().tz("Asia/Seoul").format("yyyy-MM-DD HH:mm:ss")}] ${logType}: ${JSON.stringify(logData)}\n`,
+        function () {
+          console.log(`${logType}:`, logData);
+        }
+      );
     }
-    
-    logToFileAndConsole("Checking", data, "Checking:");
-    logToFileAndConsole("Rental", data, "Rental:");
-    logToFileAndConsole("Return", data, "Return:");
-    
+
+    {
+      data.umb_id === undefined &&
+        logToFileAndConsole("Checking", data, "Checking:");
+    }
+    {
+      data.umb_id && data.std_id !== undefined &&
+        logToFileAndConsole("Rental", data, "Rental:");
+    }
+    {
+      data.std_id === undefined &&
+        logToFileAndConsole("Return", data, "Return:");
+    }
 
     if (willChk === true) {
       let delayed = new Object();
@@ -165,10 +177,12 @@ app.post("/api", (req, res) => {
               connection.end();
             }
 
-            
             if (row.length > 0 && row[0].return_date) {
               if (date > moment(row[0].return_date).tz("Asia/Seoul")) {
-                diff = Math.abs(moment().valueOf() - moment(row[0].return_date).tz("Asia/Seoul"));
+                diff = Math.abs(
+                  moment().valueOf() -
+                    moment(row[0].return_date).tz("Asia/Seoul")
+                );
                 deadline.outOfDate =
                   Math.ceil(diff / (24 * 60 * 60 * 1000)) - 1;
                 console.log(deadline);
