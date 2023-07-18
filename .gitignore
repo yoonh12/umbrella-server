@@ -22,8 +22,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-index_test.js
 *.log
 .env
 server.log
 server_error.log
+index.test.js
