@@ -60,27 +60,25 @@ app.post("/api", async (req, res) => {
     };
 
     /* Logging */
-    function logToFileAndConsole(logType, logData) {
+    function logToFile(logType, logData) {
       const logEntry = `[${moment()
         .tz("Asia/Seoul")
         .format("yyyy-MM-DD HH:mm:ss")}] ${logType}: ${JSON.stringify(
         logData
       )}\n`;
-      File.appendFile("server.log", logEntry, () => {
-        console.log(`${logType}:`, logData);
-      });
+      File.appendFile("server.log", logEntry);
     }
 
     if (data.umb_id === undefined) {
-      logToFileAndConsole("Checking", data);
+      logToFile("Checking", data);
     }
 
     if (data.umb_id && data.std_id !== undefined) {
-      logToFileAndConsole("Rental", data);
+      logToFile("Rental", data);
     }
 
     if (data.std_id === undefined) {
-      logToFileAndConsole("Return", data);
+      logToFile("Return", data);
     }
     /* Logging end. */
 
