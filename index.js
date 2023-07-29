@@ -34,10 +34,10 @@ server = https.createServer(
 const SERVER = server ?? app;
 
 let corsOptions;
-corsOptions = {
-  origin: "https://umbrella.andong.hs.kr",
-  credentials: true,
-};
+// corsOptions = {
+//   origin: "https://umbrella.andong.hs.kr",
+//   credentials: true,
+// };
 app.use(cors(corsOptions ?? null)); // CORS
 
 app.use((err, req, res, next) => {
@@ -66,7 +66,11 @@ app.post("/api", async (req, res) => {
         .format("yyyy-MM-DD HH:mm:ss")}] ${logType}: ${JSON.stringify(
         logData
       )}\n`;
-      File.appendFile("server.log", logEntry);
+      File.appendFile("server.log", logEntry, (err) => {
+        if (err) {
+          console.log(err);
+        }
+      });
     }
 
     if (data.umb_id === undefined) {
