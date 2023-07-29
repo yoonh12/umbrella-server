@@ -1,19 +1,19 @@
-// db.js
-const mysql = require("mysql");
+const mysql = require("mysql2");
 
-function createConnection() {
-  return mysql.createConnection({
+function createPool() {
+  return mysql.createPool({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWD,
     port: process.env.DB_PORT,
     database: process.env.DB_NAME,
+    connectionLimit: 10, // You can adjust the connection pool size as needed.
   });
 }
 
-function queryPromise(connection, query, params) {
+function queryPromise(pool, query, params) {
   return new Promise((resolve, reject) => {
-    connection.query(query, params, (error, results) => {
+    pool.query(query, params, (error, results) => {
       if (error) {
         reject(error);
       } else {
@@ -28,4 +28,4 @@ function handleDatabaseError(res, error) {
   res.status(400).json("Database error occurred.");
 }
 
-module.exports = { createConnection, queryPromise, handleDatabaseError };
+module.exports = { createPool, queryPromise, handleDatabaseError };
