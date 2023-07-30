@@ -25,7 +25,7 @@ function queryPromise(pool, query, params) {
 
 function handleDatabaseError(res, error) {
   console.error("Database error:", error);
-  res.status(400).json("Database error occurred.");
+  res.status(500).json("Database error occurred.");
 }
 
 module.exports = { createPool, queryPromise, handleDatabaseError };
