@@ -1,10 +1,12 @@
 const express = require("express");
-const https = require("https");
-const File = require("fs");
 const bodyParser = require("body-parser");
+const https = require("https");
 const cors = require("cors");
+const File = require("fs");
 const moment = require("moment-timezone");
+const webpush = require("web-push");
 const db = require("./db");
+const cron = require("node-cron");
 
 require("dotenv").config();
 
@@ -13,6 +15,21 @@ const tableName = process.env.DB_TABLE;
 
 const app = express();
 app.use(bodyParser.json());
+
+const publicKey = process.env.PUB_KEY,
+  privateKey = process.env.PRIV_KEY;
+
+const cronDelayUpdate = "* * * * *",
+  cronAutoNotification = "* * * * *";
+
+function getDateDifference(date1, date2) {
+  // 대한민국 표준시(KST)로 시간대를 설정
+  date1.tz("Asia/Seoul").startOf("day");
+  date2.tz("Asia/Seoul").startOf("day");
+
+  const diffInDays = date2.diff(date1, "days");
+  return diffInDays;
+}
 
 let server;
 
@@ -34,10 +51,10 @@ server = https.createServer(
 const SERVER = server ?? app;
 
 let corsOptions;
-// corsOptions = {
-//   origin: "https://umbrella.andong.hs.kr",
-//   credentials: true,
-// };
+corsOptions = {
+  origin: "https://umbrella.andong.hs.kr",
+  credentials: true,
+};
 app.use(cors(corsOptions ?? null)); // CORS
 
 app.use((err, req, res, next) => {
@@ -49,14 +66,21 @@ app.post("/api", async (req, res) => {
   try {
     const pool = db.createPool();
 
-    const date = moment().tz("Asia/Seoul");
-    const { isRenting, stdId, umbId, rentalDate, returnDate, willChk } =
-      req.body;
+    const {
+      isRenting,
+      stdId,
+      umbId,
+      rentalDate,
+      returnDate,
+      willChk,
+      subscription,
+    } = req.body;
     const data = {
       std_id: stdId,
       umb_id: umbId,
       rental_date: rentalDate,
       return_date: returnDate,
+      subscription: subscription,
     };
 
     /* Logging */
@@ -68,7 +92,7 @@ app.post("/api", async (req, res) => {
       )}\n`;
       File.appendFile("server.log", logEntry, (err) => {
         if (err) {
-          console.log(err);
+          console.error(err);
         }
       });
     }
@@ -91,20 +115,15 @@ app.post("/api", async (req, res) => {
       const checkStdId = { isAvailable: true };
 
       try {
-        const [
-          delayedResult,
-          checkStdIdResult
-        ] = await Promise.all([
+        const [delayedResult, checkStdIdResult] = await Promise.all([
           db.queryPromise(
             pool,
             `SELECT * FROM ${tableName} WHERE return_status=1 AND std_id=?`,
             [stdId]
           ),
-          db.queryPromise(
-            pool,
-            `SELECT * FROM ${tableName} WHERE std_id=?`,
-            [stdId]
-          ),
+          db.queryPromise(pool, `SELECT * FROM ${tableName} WHERE std_id=?`, [
+            stdId,
+          ]),
         ]);
 
         // console.log(delayedResult, checkStdIdResult);
@@ -138,11 +157,7 @@ app.post("/api", async (req, res) => {
             checkUmbId.isAvailable = false;
             res.send(checkUmbId);
           } else {
-            await db.queryPromise(
-              pool,
-              `INSERT INTO ${tableName} SET ?`,
-              data
-            );
+            await db.queryPromise(pool, `INSERT INTO ${tableName} SET ?`, data);
             // res.status(200).json("Successfully added data into DB.");
             res.send("Successfully added data into DB.");
           }
@@ -161,13 +176,11 @@ app.post("/api", async (req, res) => {
           );
 
           if (row.length > 0 && row[0].return_date) {
-            if (date > moment(row[0].return_date).tz("Asia/Seoul")) {
-              const diff = Math.abs(
-                moment().valueOf() - moment(row[0].return_date).tz("Asia/Seoul")
-              );
-              deadline.outOfDate = Math.ceil(diff / (24 * 60 * 60 * 1000)) - 1;
-              console.log(deadline);
-
+            deadline.outOfDate = getDateDifference(
+              moment(row[0].return_date),
+              moment()
+            );
+            if (deadline.outOfDate > 0) {
               await db.queryPromise(
                 pool,
                 `UPDATE ${tableName} SET return_status=1 WHERE umb_id=? AND return_status=0`,
@@ -197,8 +210,8 @@ app.post("/api", async (req, res) => {
     }
 
     pool.end();
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(error);
   }
 });
 
@@ -220,7 +233,7 @@ function updateReturnDelayed() {
       null,
       async (err, row) => {
         if (err) {
-          console.log(err);
+          console.error(err);
           pool.end();
         }
 
@@ -237,7 +250,7 @@ function updateReturnDelayed() {
                   [row[usr].std_id]
                 );
               } catch (error) {
-                console.log("Error: %s", error);
+                console.error("Error: %s", error);
               }
             }
           }
@@ -246,19 +259,89 @@ function updateReturnDelayed() {
         pool.end();
       }
     );
-  } catch (e) {
-    console.log(e);
+  } catch (error) {
+    console.error(error);
   }
 }
+
+const sendNotificationFunc = async () => {
+  try {
+    const pool = db.createPool();
+
+    const getTableData = async (columnName) => {
+      return await db.queryPromise(
+        pool,
+        `SELECT ${columnName} FROM ${tableName}`,
+        null
+      );
+    };
+
+    const stdIds = await getTableData("std_id");
+    const umbIds = await getTableData("umb_id"); // 구독자의 우산 번호 from DB
+    const subscriptions = await getTableData("subscription"); // 구독 정보 from DB
+    const returnDates = await getTableData("return_date"); // 반납 기한 정보 from DB
+    const alertStatuses = await getTableData("sent_alert"); // 이전 알림 전송 여부 from DB
+
+    if (
+      umbIds.length > 0 &&
+      subscriptions.length > 0 &&
+      returnDates.length > 0
+    ) {
+      for (let i = 0; i < subscriptions.length; i++) {
+        const returnDate = moment(returnDates[i].return_date); // 반납 기한
+        const daysDiff = getDateDifference(moment(), returnDate); // 반납 기한과 오늘의 차
+        const daysLeft = daysDiff + 1; // 남은 일 수 카운트를 위해 +1
+
+        const payload = JSON.stringify({
+          title: "우산 대여 서비스",
+          body: `${JSON.stringify(
+            umbIds[i].umb_id
+          )}번 우산의 반납 기한이 3일 남았습니다.`,
+        });
+
+        const subscription = JSON.parse(subscriptions[i].subscription); // 구독 정보
+        const isAlertSent = alertStatuses[i].sent_alert === 1;
+
+        if (subscription && daysLeft === 3 && !isAlertSent) {
+          // 구독중 & 반납 기한 3일 남음 & 알림 보낸 적 없음
+          webpush.sendNotification(subscription, payload, {
+            vapidDetails: {
+              subject: "mailto:neoflux@sc.gyo6.net",
+              publicKey,
+              privateKey,
+            },
+          });
+          await db.queryPromise(
+            pool,
+            `UPDATE ${tableName} SET sent_alert=1 WHERE std_id=?`,
+            [stdIds[i].std_id]
+          );
+        }
+      }
+    }
+
+    pool.end();
+  } catch (error) {
+    console.error("Send web push to client failed:", error);
+  }
+};
+
+cron.schedule(cronDelayUpdate, () => {
+  try {
+    updateReturnDelayed();
+  } catch (error) {
+    console.error("Error while automatically updating DB:", error);
+  }
+});
+
+cron.schedule(cronAutoNotification, async () => {
+  try {
+    await sendNotificationFunc();
+  } catch (error) {
+    console.error("Error while sending push notifications:", error);
+  }
+});
 
 SERVER.listen(PORT, () => {
   console.log(`This app is running on ${PORT}.`);
 });
-
-setInterval(updateReturnDelayed, 1 * 60 * 1000);
-
-function init() {
-  updateReturnDelayed();
-}
-
-init();
