@@ -20,7 +20,7 @@ const publicKey = process.env.PUB_KEY,
   privateKey = process.env.PRIV_KEY;
 
 const cronDelayUpdate = "* * * * *",
-  cronAutoNotification = "* * * * *";
+  cronAutoNotification = "0 9 * * *";
 
 function getDateDifference(date1, date2) {
   // 대한민국 표준시(KST)로 시간대를 설정
